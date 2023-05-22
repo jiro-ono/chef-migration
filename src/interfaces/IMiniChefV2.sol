@@ -15,6 +15,7 @@ interface IMiniChefV2 {
     }
     
     function owner() external view returns (address);
+    function lpToken(uint256 pid) external view returns (address);
     function poolLength() external view returns (uint256);
     function updatePool(uint256 pid) external returns (IMiniChefV2.PoolInfo memory);
     function userInfo(uint256 _pid, address _user) external view returns (uint256, uint256);
