@@ -3,6 +3,8 @@ pragma solidity 0.8.19;
 
 import "interfaces/IUniSwapV2Pair.sol";
 
+import {console2} from "forge-std/console2.sol";
+
 contract DummyPair {
     mapping (address => uint256) private _balances;
 
@@ -24,11 +26,12 @@ contract MiniChefMigrator {
 
     function migrate(IUniswapV2Pair _lpToken) public returns (address) {
         DummyPair dummyPair = createDummyPair(_lpToken.balanceOf(miniChef));
-
+        console2.log("dummyPair: %s", address(dummyPair));
+        return address(dummyPair);
     }
 
     function createDummyPair(uint256 balance) private returns (DummyPair) {
         DummyPair dummyPair = new DummyPair(balance, miniChef);
-        return dummyPair
+        return dummyPair;
     }
 }
