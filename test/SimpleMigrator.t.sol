@@ -20,7 +20,7 @@ contract SimpleMigratorTest is BaseTest {
 
 
         minichef = IMiniChefV2(constants.getAddress("polygon.minichef"));
-        migrator = new MiniChefMigrator(address(minichef));
+        migrator = new MiniChefMigrator(address(minichef), address(constants.getAddress("polygon.v3migrator")));
     }
 
     function testPoolLength() public {
