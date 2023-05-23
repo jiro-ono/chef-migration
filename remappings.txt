@@ -1,12 +1,13 @@
 /=src
 BoringSolidity/=lib/BoringSolidity/contracts/
-openzeppelin/=lib/openzeppelin-contracts/contracts/
+@openzeppelin/=lib/openzeppelin-contracts
 ds-test/=lib/forge-std/lib/ds-test/src/
 forge-std/=lib/forge-std/src/
 solbase/=lib/solbase/src/
 solmate/=lib/solmate/src/
+v3-periphery/=lib/v3-periphery/contracts/
 scripts/=scripts
 utils/=utils
 interfaces/=src/interfaces
 libraries/=src/libraries
-
+@uniswap/v2-core/contracts/interfaces/=src/interfaces/
