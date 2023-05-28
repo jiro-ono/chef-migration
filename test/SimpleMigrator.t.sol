@@ -21,7 +21,7 @@ contract SimpleMigratorTest is BaseTest {
     address public receipient = 0xeaf0227968E6EA31417734f36a7691FF2f779f81;
 
     function setUp() public override {
-        forkPolygon(43063420);
+        forkPolygon();
         super.setUp();
 
         minichef = IMiniChefV2(constants.getAddress("polygon.minichef"));

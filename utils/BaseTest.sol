@@ -38,23 +38,23 @@ abstract contract BaseTest is Test {
         vm.warp(timestamp);
     }
 
-    function forkMainnet(uint256 blockNumber) internal {
-        vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), blockNumber);
+    function forkMainnet() internal {
+        vm.createSelectFork(vm.envString("MAINNET_RPC_URL"));
     }
 
-    function forkOptimism(uint256 blockNumber) internal {
-        vm.createSelectFork(vm.envString("OPTIMISM_RPC_URL"), blockNumber);
+    function forkOptimism() internal {
+        vm.createSelectFork(vm.envString("OPTIMISM_RPC_URL"));
     }
 
-    function forkArbitrum(uint256 blockNumber) internal {
-        vm.createSelectFork(vm.envString("ARBITRUM_RPC_URL"), blockNumber);
+    function forkArbitrum() internal {
+        vm.createSelectFork(vm.envString("ARBITRUM_RPC_URL"));
     }
 
-    function forkPolygon(uint256 blockNumber) internal {
-        vm.createSelectFork(vm.envString("POLYGON_RPC_URL"), blockNumber);
+    function forkPolygon() internal {
+        vm.createSelectFork(vm.envString("POLYGON_RPC_URL"));
     }
 
-    function forkFantom(uint256 blockNumber) internal {
-        vm.createSelectFork(vm.envString("FANTOM_RPC_URL"), blockNumber);
+    function forkFantom() internal {
+        vm.createSelectFork(vm.envString("FANTOM_RPC_URL"));
     }
 }

@@ -76,9 +76,11 @@ contract MiniChefMigrator {
         DummyPair dummyPair = createDummyPair(lpToken.balanceOf(minichef));
         console2.log("dummyPair: %s", address(dummyPair));
         
-        // breakdown lp pair
+        // grab state of lp token
         address token0 = lpToken.token0();
         address token1 = lpToken.token1();
+        (uint112 reserve0, uint112 reserve1, ) = lpToken.getReserves();
+
         uint256 totalLiquidity = lpToken.balanceOf(msg.sender);
 
         // should have slippage detection during unwind here
@@ -87,7 +89,9 @@ contract MiniChefMigrator {
         //console2.log("amount0: %s", amount0);
         //console2.log("amount1: %s", amount1);
 
-        console2.log("bout to do migration");
+        // slippage protection, hardcoding 20%
+        uint256 amount0Min = (reserve0 * 80) / 100;
+        uint256 amount1Min = (reserve1 * 80) / 100;
 
         // migrate to full v3 position
         IV3Migrator.MigrateParams memory params = IV3Migrator.MigrateParams({
@@ -99,8 +103,8 @@ contract MiniChefMigrator {
             fee: uint24(500),
             tickLower: maxTickLower,
             tickUpper: maxTickUpper,
-            amount0Min: 0,
-            amount1Min: 0,
+            amount0Min: amount0Min,
+            amount1Min: amount1Min,
             recipient: recipient,
             deadline: block.timestamp + 20,
             refundAsETH: false
