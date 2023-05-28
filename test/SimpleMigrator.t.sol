@@ -4,7 +4,6 @@ pragma solidity >= 0.8.0;
 import "utils/BaseTest.sol";
 
 import "interfaces/IMiniChefV2.sol";
-import "interfaces/IERC20.sol";
 import "/MiniChefMigrator.sol";
 
 import {console2} from "forge-std/console2.sol";
@@ -12,15 +11,23 @@ import {console2} from "forge-std/console2.sol";
 contract SimpleMigratorTest is BaseTest {
     IMiniChefV2 public minichef;
     MiniChefMigrator public migrator;
+    V3Migrator public v3Migrator;
+    NonfungiblePositionManager public positionManager;
+
+    IUniswapV3Pool public testPool;
 
     function setUp() public override {
-        forkPolygon(37729882);
+        forkPolygon(43063420);
         super.setUp();
 
-
+        testPool = IUniswapV3Pool(0xf1A12338D39Fc085D8631E1A745B5116BC9b2A32);
+        console2.log("testPool: %s", address(testPool));
+        console2.log("testPool fee: %s", testPool.fee());
 
         minichef = IMiniChefV2(constants.getAddress("polygon.minichef"));
-        migrator = new MiniChefMigrator(address(minichef), address(constants.getAddress("polygon.v3migrator")));
+        positionManager = new NonfungiblePositionManager(0x917933899c6a5F8E37F31E19f92CdBFF7e8FF0e2, 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270, 0x8c990A53e3fc5e4dB1404baB33C6DfaCEABfFEcc);
+        v3Migrator = new V3Migrator(0x917933899c6a5F8E37F31E19f92CdBFF7e8FF0e2, 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270, address(positionManager));
+        migrator = new MiniChefMigrator(address(minichef), address(v3Migrator));
     }
 
     function testPoolLength() public {

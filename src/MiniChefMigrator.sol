@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity >= 0.8.0;
 
-import "interfaces/IUniSwapV2Pair.sol";
 import "v3-periphery/V3Migrator.sol";
 
 import {console2} from "forge-std/console2.sol";
@@ -44,7 +43,7 @@ contract MiniChefMigrator {
 
     constructor(address _minichef, address _v3Migrator) {
         minichef = _minichef;
-        v3Migrator = V3Migrator(_v3Migrator);
+        v3Migrator = V3Migrator(payable(_v3Migrator));
     }
 
     function addToPidMap(uint256 pid, address user) public {
@@ -85,20 +84,22 @@ contract MiniChefMigrator {
         //console2.log("amount0: %s", amount0);
         //console2.log("amount1: %s", amount1);
 
+        console2.log("bout to do migration");
+
         // migrate to full v3 position
-        V3Migrator.MigrateParams memory params = V3Migrator.MigrateParams({
+        IV3Migrator.MigrateParams memory params = IV3Migrator.MigrateParams({
             pair: address(lpToken),
             liquidityToMigrate: totalLiquidity,
             percentageToMigrate: 100,
             token0: token0,
             token1: token1,
-            fee: 500,
+            fee: uint24(500),
             tickLower: maxTickLower,
             tickUpper: maxTickUpper,
             amount0Min: 0,
             amount1Min: 0,
             recipient: address(0x7812BCD0c0De8D15Ff4C47391d2d9AE1B4DE13f0),
-            deadline: block.timestamp + 1000000000,
+            deadline: block.timestamp + 20,
             refundAsETH: false
         });
 
