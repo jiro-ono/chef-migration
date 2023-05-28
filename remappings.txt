@@ -11,3 +11,4 @@ utils/=utils
 interfaces/=src/interfaces
 libraries/=src/libraries
 @uniswap/v2-core/contracts/interfaces/=src/interfaces/
+@uniswap/v3-core/=lib/v3-core/

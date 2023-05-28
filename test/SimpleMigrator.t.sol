@@ -3,6 +3,8 @@ pragma solidity >= 0.8.0;
 
 import "utils/BaseTest.sol";
 
+import "v3-periphery/NonfungiblePositionManager.sol";
+
 import "interfaces/IMiniChefV2.sol";
 import "/MiniChefMigrator.sol";
 
