@@ -30,7 +30,9 @@ contract Constants {
         setAddress("polygon.usdc", 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174);
         setAddress("polygon.usdt", 0xc2132D05D31c914a87C6611C10748AEb04B58e8F);
         setAddress("polygon.minichef", 0x0769fd68dFb93167989C6f7254cd0D766Fb2841F);
-        setAddress("polygon.v3migrator", 0xFB7eF66a7e61224DD6FcD0D7d9C3be5C8B049b9f);
+        setAddress("polygon.v3Factory", 0x917933899c6a5F8E37F31E19f92CdBFF7e8FF0e2);
+        setAddress("polygon.positionManager", 0xb7402ee99F0A008e461098AC3A27F4957Df89a40);
+        setAddress("polygon.v3Migrator", 0xFB7eF66a7e61224DD6FcD0D7d9C3be5C8B049b9f);
 
         // Fantom
     }

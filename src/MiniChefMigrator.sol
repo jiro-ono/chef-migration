@@ -19,6 +19,8 @@ contract DummyPair {
 
 contract MiniChefMigrator {
     address minichef;
+    address recipient;
+
     V3Migrator v3Migrator;
     int24 maxTickLower = -887220;
     int24 maxTickUpper = 887220;
@@ -41,8 +43,9 @@ contract MiniChefMigrator {
         bool refundAsETH;
     }
 
-    constructor(address _minichef, address _v3Migrator) {
+    constructor(address _minichef, address _v3Migrator, address _recipient) {
         minichef = _minichef;
+        recipient = _recipient;
         v3Migrator = V3Migrator(payable(_v3Migrator));
     }
 
@@ -98,7 +101,7 @@ contract MiniChefMigrator {
             tickUpper: maxTickUpper,
             amount0Min: 0,
             amount1Min: 0,
-            recipient: address(0x7812BCD0c0De8D15Ff4C47391d2d9AE1B4DE13f0),
+            recipient: recipient,
             deadline: block.timestamp + 20,
             refundAsETH: false
         });
