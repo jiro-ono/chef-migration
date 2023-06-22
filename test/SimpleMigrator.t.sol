@@ -64,6 +64,5 @@ contract SimpleMigratorTest is BaseTest {
         assertEq(lpToken.balanceOf(address(minichef)), 0);
         assertEq(positionManager.balanceOf(address(receipient)), 1);
         assertEq(positionManager.totalSupply(), preTotalPositions + 1);
-
     }
 }
