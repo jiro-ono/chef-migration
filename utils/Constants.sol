@@ -16,6 +16,8 @@ contract Constants {
         // Mainnet
         setAddress("mainnet.weth", 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
         setAddress("mainnet.usdc", 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+        setAddress("mainnet.masterchef", 0xc2EdaD668740f1aA35E4D8f227fB8E17dcA888Cd);
+        setAddress("mainnet.masterchefv2", 0xEF0881eC094552b2e128Cf945EF17a6752B4Ec5d);
 
         // Optimism
         setAddress("optimism.weth", 0x4200000000000000000000000000000000000006);

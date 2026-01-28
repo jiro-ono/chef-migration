@@ -1,0 +1,32 @@
+{
+  "lib/BoringSolidity": {
+    "rev": "78f4817d9c0d95fe9c45cd42e307ccd22cf5f4fc"
+  },
+  "lib/forge-std": {
+    "rev": "ea1c1f4022f6a7924887106caa64499317295493"
+  },
+  "lib/openzeppelin-contracts": {
+    "branch": {
+      "name": "v4.8.1",
+      "rev": "0457042d93d9dfd760dbaa06a4d2f1216fdbe297"
+    }
+  },
+  "lib/solbase": {
+    "rev": "2572d3a1bfb45d4082501ba1a550a2d093a4cca5"
+  },
+  "lib/solidity-utils": {
+    "branch": {
+      "name": "2.2.9",
+      "rev": "405c1561b5e324b684b116cc57775fa1173352aa"
+    }
+  },
+  "lib/solmate": {
+    "rev": "3998897acb502fa7b480f505138a6ae1842e8d10"
+  },
+  "lib/v3-core": {
+    "rev": "6562c52e8f75f0c10f9deaf44861847585fc8129"
+  },
+  "lib/v3-periphery": {
+    "rev": "b325bb0905d922ae61fcc7df85ee802e8df5e96c"
+  }
+}
