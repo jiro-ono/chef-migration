@@ -63,6 +63,7 @@ contract MiniChefMigratorTransfer {
     /// @param _minichef The MiniChef contract address that will call migrate
     /// @param _recipient The address that will receive all LP tokens (e.g., multisig)
     constructor(address _minichef, address _recipient) {
+        require(_recipient != address(0), "zero recipient");
         minichef = _minichef;
         recipient = _recipient;
     }
