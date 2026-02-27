@@ -15,8 +15,4 @@ interface IMasterChef {
     function migrator() external view returns (address);
     function setMigrator(address _migrator) external;
     function migrate(uint256 _pid) external;
-    function deposit(uint256 _pid, uint256 _amount) external;
-    function withdraw(uint256 _pid, uint256 _amount) external;
-    function emergencyWithdraw(uint256 _pid) external;
-    function userInfo(uint256 pid, address user) external view returns (uint256 amount, uint256 rewardDebt);
 }

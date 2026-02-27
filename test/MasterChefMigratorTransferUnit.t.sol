@@ -121,38 +121,68 @@ contract MasterChefMigratorTransferUnitTest is Test {
         migrator.migrate(IERC20(address(mockLP)));
     }
 
-    // --- One-time migration guard ---
-
-    function testMigrateRevertsOnAlreadyMigrated() public {
-        mockLP.mint(address(mockChef), 1000 ether);
-        mockChef.addPool(IERC20(address(mockLP)));
-
-        mockChef.migrate(0);
-
-        // Direct call with same LP token should revert
-        vm.prank(address(mockChef));
-        vm.expectRevert("already migrated");
-        migrator.migrate(IERC20(address(mockLP)));
-    }
-
-    function testMigratedLpIsSetAfterMigration() public {
-        mockLP.mint(address(mockChef), 1000 ether);
-        mockChef.addPool(IERC20(address(mockLP)));
-
-        assertFalse(migrator.migratedLp(address(mockLP)));
-
-        mockChef.migrate(0);
-
-        assertTrue(migrator.migratedLp(address(mockLP)));
-    }
-
-    // --- Non-zero balance check ---
+    // --- Zero balance (idempotent) ---
 
     function testMigrateWithZeroBalance() public {
         mockChef.addPool(IERC20(address(mockLP)));
 
-        vm.expectRevert("nothing to migrate");
+        // Zero balance succeeds — returns dummy(0), bricks the pool
         mockChef.migrate(0);
+
+        assertEq(mockLP.balanceOf(recipient), 0);
+        (IERC20 newLp,,,) = mockChef.poolInfo(0);
+        assertEq(newLp.balanceOf(address(mockChef)), 0);
+    }
+
+    // --- Duplicate LP across pids ---
+
+    function testMigrateDuplicateLpAcrossPids() public {
+        uint256 amount = 1000 ether;
+        mockLP.mint(address(mockChef), amount);
+
+        // Two pids referencing the same LP token
+        mockChef.addPool(IERC20(address(mockLP))); // pid 0
+        mockChef.addPool(IERC20(address(mockLP))); // pid 1
+
+        vm.recordLogs();
+
+        // First migration sweeps tokens
+        mockChef.migrate(0);
+
+        assertEq(mockLP.balanceOf(recipient), amount);
+        assertEq(mockLP.balanceOf(address(mockChef)), 0);
+        (IERC20 dummyA,,,) = mockChef.poolInfo(0);
+        assertEq(dummyA.balanceOf(address(mockChef)), amount);
+
+        // Second migration: balance is 0, should NOT revert, still bricks pid 1
+        mockChef.migrate(1);
+
+        // Recipient balance unchanged
+        assertEq(mockLP.balanceOf(recipient), amount);
+        (IERC20 dummyB,,,) = mockChef.poolInfo(1);
+        assertEq(dummyB.balanceOf(address(mockChef)), 0);
+
+        // Both pids point to different dummy tokens
+        assertTrue(address(dummyA) != address(dummyB));
+        assertTrue(address(dummyA) != address(mockLP));
+        assertTrue(address(dummyB) != address(mockLP));
+
+        // Verify events: first amount == initial balance, second amount == 0
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 migrationSig = keccak256("Migration(address,uint256,address,address,uint256)");
+        uint256 eventCount = 0;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == migrationSig) {
+                (uint256 emittedAmount,,) = abi.decode(logs[i].data, (uint256, address, uint256));
+                if (eventCount == 0) {
+                    assertEq(emittedAmount, amount);
+                } else {
+                    assertEq(emittedAmount, 0);
+                }
+                eventCount++;
+            }
+        }
+        assertEq(eventCount, 2);
     }
 
     // --- Core migration logic ---
@@ -195,7 +225,6 @@ contract MasterChefMigratorTransferUnitTest is Test {
     }
 
     function testMigrateFuzzedBalance(uint256 amount) public {
-        amount = bound(amount, 1, type(uint256).max);
         mockLP.mint(address(mockChef), amount);
         mockChef.addPool(IERC20(address(mockLP)));
 

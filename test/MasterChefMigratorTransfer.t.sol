@@ -5,6 +5,10 @@ import "utils/BaseTest.sol";
 import "interfaces/IMasterChef.sol";
 import "/MasterChefMigratorTransfer.sol";
 
+// Pin fork block for deterministic CI behavior.
+// Block chosen because MasterChef pool + LP state is valid and stable here.
+uint256 constant FORK_BLOCK = 24_551_130;
+
 contract MasterChefMigratorTransferTest is BaseTest {
     IMasterChef public masterchef;
     MasterChefMigratorTransfer public migrator;
@@ -15,7 +19,7 @@ contract MasterChefMigratorTransferTest is BaseTest {
     uint256 public activePreBalance;
 
     function setUp() public override {
-        forkMainnet();
+        vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), FORK_BLOCK);
         super.setUp();
         masterchef = IMasterChef(constants.getAddress("mainnet.masterchef"));
         migrator = new MasterChefMigratorTransfer(address(masterchef), multisig);
@@ -52,55 +56,22 @@ contract MasterChefMigratorTransferTest is BaseTest {
         assertTrue(address(newLp) != address(activeLpToken));
         assertEq(newLp.balanceOf(address(masterchef)), activePreBalance);
 
-        // migratedLp flag set
-        assertTrue(migrator.migratedLp(address(activeLpToken)));
     }
 
-    function testMigrateRevertsOnSecondCall() public {
+    function testMigrateIdempotentOnSameLp() public {
         vm.startPrank(masterchef.owner());
         masterchef.setMigrator(address(migrator));
         masterchef.migrate(activePid);
-
-        // Second call should revert - the LP token has already been migrated
-        // Need a fresh migrator set since poolInfo now points to dummy
-        // But the migratedLp guard is on the original LP token address,
-        // and migrate() is called with the new dummy token which hasn't been migrated.
-        // To test the guard properly, we need a second pool with the same LP token,
-        // or we test via direct call.
         vm.stopPrank();
 
-        // Direct call: prank as masterchef and call migrate with the same LP token
+        // Direct call with same LP (balance is now 0) — should NOT revert
         vm.prank(address(masterchef));
-        vm.expectRevert("already migrated");
-        migrator.migrate(activeLpToken);
-    }
+        IERC20 dummy = migrator.migrate(activeLpToken);
 
-    function testMigrateRevertsOnZeroBalance() public {
-        // Find a pool with zero balance, or use pid 0 after migrating it
-        uint256 len = masterchef.poolLength();
-        uint256 zeroPid = type(uint256).max;
-        IERC20 zeroLp;
-        for (uint256 i = 0; i < len; i++) {
-            (IERC20 lp,,,) = masterchef.poolInfo(i);
-            uint256 bal = lp.balanceOf(address(masterchef));
-            if (bal == 0) {
-                zeroPid = i;
-                zeroLp = lp;
-                break;
-            }
-        }
-
-        if (zeroPid != type(uint256).max) {
-            // Direct call with zero-balance LP token
-            vm.prank(address(masterchef));
-            vm.expectRevert("nothing to migrate");
-            migrator.migrate(zeroLp);
-        } else {
-            // All pools have balance — create a dummy address as LP token with zero balance
-            vm.prank(address(masterchef));
-            vm.expectRevert(); // will revert (either nothing to migrate or call failure)
-            migrator.migrate(IERC20(address(0xDEAD)));
-        }
+        // Dummy reports 0 balance (no tokens left to sweep)
+        assertEq(dummy.balanceOf(address(masterchef)), 0);
+        // Recipient balance unchanged from first migration
+        assertGt(activeLpToken.balanceOf(multisig), 0);
     }
 
     function testMigrateEmitsFullEvent() public {
