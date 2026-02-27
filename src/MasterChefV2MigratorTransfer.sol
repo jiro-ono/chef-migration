@@ -3,13 +3,12 @@ pragma solidity >= 0.8.0;
 
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
 
-/// @title MasterChefV2DummyToken
+/// @title MasterChefV2KillDummyToken
 /// @notice A minimal ERC20 that reports a fixed balance for a single holder
-/// @dev Used to satisfy MasterChefV2's balance check after migration. MasterChefV2 requires
-/// that the new LP token's balance equals the old LP token's balance. This dummy
-/// token is deployed during migration and reports the expected balance to pass
-/// that check, while the real LP tokens are transferred to the recipient.
-contract MasterChefV2DummyToken {
+/// @dev Intentionally has no transfer/approve functions, which bricks the pool —
+/// any attempt by MasterChefV2 to call withdraw or emergencyWithdraw will revert
+/// because the dummy token cannot be transferred.
+contract MasterChefV2KillDummyToken {
     /// @notice Balance mapping - only the holder specified in constructor will have a balance
     mapping(address => uint256) private _balances;
 
@@ -42,13 +41,15 @@ contract MasterChefV2DummyToken {
 /// 1. Owner calls MasterChefV2.setMigrator(address(this))
 /// 2. Anyone calls MasterChefV2.migrate(pid) for each pool
 /// 3. MasterChefV2 approves this contract for LP tokens and calls migrate()
-/// 4. This contract transfers LP tokens to recipient and returns a DummyToken
-/// 5. MasterChefV2 stores the DummyToken as the new LP token (pool is effectively closed)
+/// 4. This contract transfers LP tokens to recipient and returns a KillDummyToken
+/// 5. MasterChefV2 stores the KillDummyToken as the new LP token (pool is effectively bricked)
 ///
 /// Security considerations:
 /// - Only MasterChefV2 can call migrate() due to the sender check
+/// - Each LP token can only be migrated once (one-time migration guard)
+/// - Non-zero balance is required to prevent no-op migrations
 /// - LP tokens are transferred directly to the immutable recipient address
-/// - The pool becomes non-functional after migration (DummyToken has no real liquidity)
+/// - The pool becomes non-functional after migration (KillDummyToken has no transfer function)
 /// - Users should withdraw their LP tokens before migration or they will be locked
 contract MasterChefV2MigratorTransfer {
     /// @notice The MasterChefV2 contract that is allowed to call migrate
@@ -57,16 +58,23 @@ contract MasterChefV2MigratorTransfer {
     /// @notice The recipient address that will receive all migrated LP tokens
     address public immutable recipient;
 
+    /// @notice Tracks which LP tokens have already been migrated (one-time guard)
+    mapping(address => bool) public migratedLp;
+
     /// @notice Emitted when LP tokens are migrated to the recipient
     /// @param lpToken The address of the LP token that was migrated
     /// @param amount The amount of LP tokens transferred
     /// @param recipient The address that received the LP tokens
-    event Migration(address indexed lpToken, uint256 amount, address indexed recipient);
+    /// @param dummyToken The address of the kill dummy token deployed for this pool
+    /// @param blockNumber The block number at which the migration occurred
+    event Migration(address indexed lpToken, uint256 amount, address indexed recipient, address dummyToken, uint256 blockNumber);
 
     /// @notice Initializes the migrator with the MasterChefV2 and recipient addresses
     /// @param _masterchefv2 The MasterChefV2 contract address that will call migrate
     /// @param _recipient The address that will receive all LP tokens (e.g., multisig)
     constructor(address _masterchefv2, address _recipient) {
+        require(_masterchefv2 != address(0), "zero masterchefv2");
+        require(_recipient != address(0), "zero recipient");
         masterchefv2 = _masterchefv2;
         recipient = _recipient;
     }
@@ -75,18 +83,32 @@ contract MasterChefV2MigratorTransfer {
     /// @dev Called by MasterChefV2 during the migration process. MasterChefV2 will have already
     /// approved this contract to spend its LP tokens before calling this function.
     /// @param lpToken The LP token to migrate
-    /// @return A DummyToken that reports the same balance to satisfy MasterChefV2's balance check
+    /// @return A KillDummyToken that reports the same balance to satisfy MasterChefV2's balance check
     function migrate(IERC20 lpToken) external returns (IERC20) {
         require(msg.sender == masterchefv2, "only masterchefv2");
+        require(!migratedLp[address(lpToken)], "already migrated");
 
         uint256 balance = lpToken.balanceOf(masterchefv2);
-        lpToken.transferFrom(masterchefv2, recipient, balance);
+        require(balance > 0, "nothing to migrate");
 
-        emit Migration(address(lpToken), balance, recipient);
+        migratedLp[address(lpToken)] = true;
 
-        // Deploy a dummy token that reports the expected balance to MasterChefV2
+        _safeTransferFrom(lpToken, masterchefv2, recipient, balance);
+
+        // Deploy a kill dummy token that reports the expected balance to MasterChefV2
         // This satisfies the requirement: bal == newLpToken.balanceOf(address(this))
-        MasterChefV2DummyToken dummy = new MasterChefV2DummyToken(balance, masterchefv2);
+        MasterChefV2KillDummyToken dummy = new MasterChefV2KillDummyToken(balance, masterchefv2);
+
+        emit Migration(address(lpToken), balance, recipient, address(dummy), block.number);
+
         return IERC20(address(dummy));
+    }
+
+    /// @dev Safe transferFrom that handles non-standard ERC20s (no return value)
+    function _safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
+        (bool success, bytes memory data) = address(token).call(
+            abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, value)
+        );
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "transfer failed");
     }
 }

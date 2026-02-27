@@ -10,29 +10,115 @@ contract MasterChefV2MigratorTransferTest is BaseTest {
     MasterChefV2MigratorTransfer public migrator;
     address public multisig = 0x19B3Eb3Af5D93b77a5619b047De0EED7115A19e7; // Sushi Ops multisig
 
+    uint256 public activePid;
+    IERC20 public activeLpToken;
+    uint256 public activePreBalance;
+
     function setUp() public override {
         forkMainnet();
         super.setUp();
         masterchefv2 = IMasterChefV2(constants.getAddress("mainnet.masterchefv2"));
         migrator = new MasterChefV2MigratorTransfer(address(masterchefv2), multisig);
+
+        // Dynamically find a pool with nonzero LP balance
+        uint256 len = masterchefv2.poolLength();
+        for (uint256 i = 0; i < len; i++) {
+            IERC20 lp = masterchefv2.lpToken(i);
+            uint256 bal = lp.balanceOf(address(masterchefv2));
+            if (bal > 0) {
+                activePid = i;
+                activeLpToken = lp;
+                activePreBalance = bal;
+                break;
+            }
+        }
+        require(activePreBalance > 0, "no active pool found");
     }
 
-    function testMigrateTransfer(uint256 pid) public {
-        vm.assume(pid < masterchefv2.poolLength());
-
-        IERC20 lpToken = masterchefv2.lpToken(pid);
-        uint256 preBalance = lpToken.balanceOf(address(masterchefv2));
-
-        // Skip pools with zero balance
-        vm.assume(preBalance > 0);
+    function testMigrateSweepsBalanceAndSetsDummy() public {
+        uint256 preMsigBalance = activeLpToken.balanceOf(multisig);
 
         vm.startPrank(masterchefv2.owner());
         masterchefv2.setMigrator(address(migrator));
-        masterchefv2.migrate(pid);
+        masterchefv2.migrate(activePid);
         vm.stopPrank();
 
         // LP tokens transferred to multisig
-        assertEq(lpToken.balanceOf(multisig), preBalance);
-        assertEq(lpToken.balanceOf(address(masterchefv2)), 0);
+        assertEq(activeLpToken.balanceOf(multisig), preMsigBalance + activePreBalance);
+        assertEq(activeLpToken.balanceOf(address(masterchefv2)), 0);
+
+        // Pool now points to dummy token
+        IERC20 newLp = masterchefv2.lpToken(activePid);
+        assertTrue(address(newLp) != address(activeLpToken));
+        assertEq(newLp.balanceOf(address(masterchefv2)), activePreBalance);
+
+        // migratedLp flag set
+        assertTrue(migrator.migratedLp(address(activeLpToken)));
+    }
+
+    function testMigrateRevertsOnSecondCall() public {
+        vm.startPrank(masterchefv2.owner());
+        masterchefv2.setMigrator(address(migrator));
+        masterchefv2.migrate(activePid);
+        vm.stopPrank();
+
+        // Direct call: prank as masterchefv2 and call migrate with the same LP token
+        vm.prank(address(masterchefv2));
+        vm.expectRevert("already migrated");
+        migrator.migrate(activeLpToken);
+    }
+
+    function testMigrateRevertsOnZeroBalance() public {
+        // Find a pool with zero balance
+        uint256 len = masterchefv2.poolLength();
+        uint256 zeroPid = type(uint256).max;
+        IERC20 zeroLp;
+        for (uint256 i = 0; i < len; i++) {
+            IERC20 lp = masterchefv2.lpToken(i);
+            uint256 bal = lp.balanceOf(address(masterchefv2));
+            if (bal == 0) {
+                zeroPid = i;
+                zeroLp = lp;
+                break;
+            }
+        }
+
+        if (zeroPid != type(uint256).max) {
+            vm.prank(address(masterchefv2));
+            vm.expectRevert("nothing to migrate");
+            migrator.migrate(zeroLp);
+        } else {
+            vm.prank(address(masterchefv2));
+            vm.expectRevert();
+            migrator.migrate(IERC20(address(0xDEAD)));
+        }
+    }
+
+    function testMigrateEmitsFullEvent() public {
+        vm.startPrank(masterchefv2.owner());
+        masterchefv2.setMigrator(address(migrator));
+
+        vm.recordLogs();
+        masterchefv2.migrate(activePid);
+        vm.stopPrank();
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        // Find the Migration event
+        bytes32 migrationSig = keccak256("Migration(address,uint256,address,address,uint256)");
+        bool found = false;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == migrationSig) {
+                found = true;
+                assertEq(address(uint160(uint256(logs[i].topics[1]))), address(activeLpToken));
+                assertEq(address(uint160(uint256(logs[i].topics[2]))), multisig);
+                (uint256 amount, address dummyToken, uint256 blockNumber) = abi.decode(logs[i].data, (uint256, address, uint256));
+                assertEq(amount, activePreBalance);
+                assertTrue(dummyToken != address(0));
+                assertEq(blockNumber, block.number);
+                break;
+            }
+        }
+        assertTrue(found, "Migration event not found");
     }
 }
